@@ -1,0 +1,14 @@
+account_id = "REPLACE_WITH_ACCOUNT_ID"
+name = "transferapp-auth"
+main = "src/index.js"
+compatibility_date = "2024-09-24"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "transferapp-auth"
+database_id = "REPLACE_WITH_DB_ID"
+migrations_dir = "migrations"
+
+[vars]
+# URL of the tunneled Rust backend (e.g., https://api.internal.ejvr.xyz)
+BACKEND_URL = "https://your-backend-host"

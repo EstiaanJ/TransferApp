@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TransferApp MVP</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+    body {
+      margin: 0;
+      padding: 1.5rem;
+      background: #f6f7fb;
+    }
+    header {
+      margin-bottom: 1rem;
+    }
+    main {
+      display: grid;
+      gap: 1rem;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    }
+    section {
+      background: white;
+      border-radius: 12px;
+      padding: 1rem 1.25rem;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+      border: 1px solid #e4e6ef;
+    }
+    h2 {
+      margin-top: 0;
+      font-size: 1.1rem;
+    }
+    label {
+      display: block;
+      margin: 0.5rem 0 0.25rem;
+      font-weight: 600;
+    }
+    input {
+      width: 100%;
+      padding: 0.5rem;
+      border-radius: 8px;
+      border: 1px solid #cfd3dc;
+      background: #f9fafc;
+    }
+    button {
+      margin-top: 0.75rem;
+      padding: 0.65rem 0.85rem;
+      border-radius: 10px;
+      background: #2563eb;
+      color: white;
+      border: none;
+      font-weight: 700;
+      cursor: pointer;
+      width: 100%;
+    }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+    pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: #0f172a;
+      color: #e2e8f0;
+      border-radius: 10px;
+      padding: 0.75rem;
+      min-height: 120px;
+    }
+    .hint { color: #475569; font-size: 0.9rem; }
+    .ok { color: #16a34a; font-weight: 700; }
+    .error { color: #dc2626; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>TransferApp MVP smoke test</h1>
+    <p class="hint">Use this page to verify Cloudflare Pages &rarr; Worker &rarr; D1 auth &rarr; tunneled Rust backend.</p>
+  </header>
+
+  <main>
+    <section>
+      <h2>Sign up (gated)</h2>
+      <p class="hint">Requires the rotating signup secret you hand out to testers.</p>
+      <label for="signup-email">Email</label>
+      <input id="signup-email" type="email" placeholder="you@example.com" autocomplete="email">
+      <label for="signup-password">Password</label>
+      <input id="signup-password" type="password" placeholder="At least 8 characters" autocomplete="new-password">
+      <label for="signup-secret">Signup secret</label>
+      <input id="signup-secret" type="text" placeholder="Paste the tester secret">
+      <button id="signup-btn">Create account</button>
+      <p id="signup-status" class="hint"></p>
+    </section>
+
+    <section>
+      <h2>Login</h2>
+      <label for="login-email">Email</label>
+      <input id="login-email" type="email" autocomplete="email">
+      <label for="login-password">Password</label>
+      <input id="login-password" type="password" autocomplete="current-password">
+      <button id="login-btn">Log in</button>
+      <p id="login-status" class="hint"></p>
+    </section>
+
+    <section>
+      <h2>Backend echo (through Worker)</h2>
+      <p class="hint">Confirms a JWT issued by the Worker reaches the Rust backend via tunnel/Zero Trust.</p>
+      <label for="echo-payload">Payload</label>
+      <input id="echo-payload" type="text" value="hello from pages">
+      <button id="echo-btn">Send echo</button>
+      <pre id="echo-output">Waiting for request...</pre>
+    </section>
+  </main>
+
+  <script>
+    const workerBase = window.__WORKER_BASE__ || '';
+    const signupBtn = document.getElementById('signup-btn');
+    const loginBtn = document.getElementById('login-btn');
+    const echoBtn = document.getElementById('echo-btn');
+    let sessionToken = null;
+
+    async function postJSON(path, data) {
+      const res = await fetch(workerBase + path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      const text = await res.text();
+      try { return { ok: res.ok, data: JSON.parse(text) }; }
+      catch (_) { return { ok: res.ok, data: { message: text } }; }
+    }
+
+    signupBtn.addEventListener('click', async () => {
+      signupBtn.disabled = true;
+      document.getElementById('signup-status').textContent = 'Creating account...';
+      const payload = {
+        email: document.getElementById('signup-email').value,
+        password: document.getElementById('signup-password').value,
+        signupSecret: document.getElementById('signup-secret').value
+      };
+      const res = await postJSON('/signup', payload);
+      document.getElementById('signup-status').textContent = res.ok ? 'Account created. You can log in now.' : `Error: ${res.data.message || res.data.error}`;
+      signupBtn.disabled = false;
+    });
+
+    loginBtn.addEventListener('click', async () => {
+      loginBtn.disabled = true;
+      document.getElementById('login-status').textContent = 'Authenticating...';
+      const payload = {
+        email: document.getElementById('login-email').value,
+        password: document.getElementById('login-password').value
+      };
+      const res = await postJSON('/login', payload);
+      if (res.ok && res.data.token) {
+        sessionToken = res.data.token;
+        document.getElementById('login-status').innerHTML = `<span class="ok">Logged in.</span> Token cached in memory.`;
+      } else {
+        document.getElementById('login-status').innerHTML = `<span class="error">Login failed:</span> ${res.data.message || res.data.error}`;
+      }
+      loginBtn.disabled = false;
+    });
+
+    echoBtn.addEventListener('click', async () => {
+      echoBtn.disabled = true;
+      document.getElementById('echo-output').textContent = 'Calling backend...';
+      const res = await fetch(workerBase + '/proxy/echo', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(sessionToken ? { 'Authorization': `Bearer ${sessionToken}` } : {})
+        },
+        body: JSON.stringify({ message: document.getElementById('echo-payload').value })
+      });
+      const text = await res.text();
+      let out;
+      try { out = JSON.parse(text); } catch (_) { out = { raw: text }; }
+      document.getElementById('echo-output').textContent = res.ok ? JSON.stringify(out, null, 2) : `Error ${res.status}: ${text}`;
+      echoBtn.disabled = false;
+    });
+  </script>
+</body>
+</html>
