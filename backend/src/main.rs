@@ -10,7 +10,6 @@ use hmac::{Hmac, Mac};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use std::{env, net::SocketAddr, sync::Arc};
-use tokio::net::TcpListener;
 use chrono::Utc;
 
 type HmacSha256 = Hmac<Sha256>;
@@ -52,14 +51,12 @@ async fn main() {
 
     let port: u16 = env::var("PORT").ok().and_then(|p| p.parse().ok()).unwrap_or(3000);
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
-    let listener = TcpListener::bind(addr).await.expect("failed to bind listener");
-    let local_addr = listener
-        .local_addr()
-        .map(|addr| addr.to_string())
-        .unwrap_or_else(|_| format!("0.0.0.0:{port}"));
 
-    println!("Listening on {local_addr}");
-    axum::serve(listener, app).await.expect("server error");
+    println!("Listening on {addr}");
+    axum::Server::bind(&addr)
+        .serve(app.into_make_service())
+        .await
+        .unwrap();
 }
 
 async fn echo(State(state): State<AppState>, headers: HeaderMap, Json(body): Json<EchoRequest>) -> impl IntoResponse {

@@ -42,7 +42,7 @@ This document walks through an end-to-end deployment on Debian: build/run the Ru
    cloudflared tunnel create transferapp-backend
    ```
    This writes credentials to `~/.cloudflared/<tunnel-id>.json`.
-3. Add a DNS route for the hostname (one-time). If you use the dashboard **Route traffic** form, set **Subdomain** `api`, **Domain** `ejvr.xyz`, **Path** blank, **Type** `HTTP`, and **URL** `http://localhost:3000`. The CLI equivalent:
+3. Add a DNS route for the hostname (one-time):
    ```bash
    cloudflared tunnel route dns transferapp-backend api.ejvr.xyz
    ```
@@ -53,7 +53,7 @@ This document walks through an end-to-end deployment on Debian: build/run the Ru
    Leave this running while testing. Optional: create a systemd service for persistence.
 
 ## 3) Worker: configure and deploy
-1. Set Wrangler context (run from `workers/auth` so Wrangler can read the config, or pass `--config workers/auth/wrangler.toml`):
+1. Set Wrangler context:
    ```bash
    cd workers/auth
    wrangler login
