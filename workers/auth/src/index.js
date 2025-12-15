@@ -2,24 +2,31 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const origin = allowedOriginFor(request, env);
+    const pathname = normalizePath(url.pathname);
 
-    if (request.method === 'OPTIONS') {
-      return withCors(new Response(null, { status: 204 }), origin);
-    }
-    if (request.method === 'POST' && url.pathname === '/signup') {
-      return withCors(await handleSignup(request, env), origin);
-    }
-    if (request.method === 'POST' && url.pathname === '/login') {
-      return withCors(await handleLogin(request, env), origin);
-    }
-    if (request.method === 'POST' && url.pathname === '/proxy/echo') {
-      return withCors(await handleEchoProxy(request, env), origin);
-    }
-    if (request.method === 'GET' && url.pathname === '/healthz') {
-      return withCors(new Response('ok'), origin);
-    }
+    try {
+      if (request.method === 'OPTIONS') {
+        const allowHeaders = request.headers.get('Access-Control-Request-Headers');
+        return withCors(new Response(null, { status: 204 }), origin, allowHeaders);
+      }
+      if (request.method === 'POST' && pathname === '/signup') {
+        return withCors(await handleSignup(request, env), origin);
+      }
+      if (request.method === 'POST' && pathname === '/login') {
+        return withCors(await handleLogin(request, env), origin);
+      }
+      if (pathname === '/proxy/echo' && (request.method === 'POST' || request.method === 'GET')) {
+        return withCors(await handleEchoProxy(request, env), origin);
+      }
+      if (request.method === 'GET' && pathname === '/healthz') {
+        return withCors(new Response('ok'), origin);
+      }
 
-    return withCors(jsonResponse({ message: 'Not found' }, 404), origin);
+      return withCors(jsonResponse({ message: 'Not found' }, 404), origin);
+    } catch (err) {
+      console.error('Unhandled worker error', err);
+      return withCors(jsonResponse({ error: 'Unexpected error' }, 500), origin);
+    }
   }
 };
 
@@ -83,17 +90,18 @@ async function handleEchoProxy(request, env) {
     return jsonResponse({ error: 'BACKEND_URL not configured' }, 500);
   }
   const auth = request.headers.get('Authorization');
-  const payload = await readJSON(request);
-  const body = JSON.stringify({ message: payload?.message ?? 'ping' });
+  const payload = request.method === 'POST' ? await readJSON(request) : null;
+  const message = payload?.message ?? new URL(request.url).searchParams.get('message') ?? 'ping';
+  const body = JSON.stringify({ message });
   const target = `${env.BACKEND_URL.replace(/\/$/, '')}/echo`;
 
   const res = await fetch(target, {
-    method: 'POST',
+    method: request.method === 'GET' ? 'GET' : 'POST',
     headers: {
       'Content-Type': 'application/json',
       ...(auth ? { Authorization: auth } : {})
     },
-    body
+    ...(request.method === 'POST' ? { body } : {})
   });
 
   const text = await res.text();
@@ -154,11 +162,19 @@ function allowedOriginFor(request, env) {
   return request.headers.get('Origin') || '*';
 }
 
-function withCors(response, origin) {
+function normalizePath(pathname) {
+  const trimmed = pathname.replace(/\/+$/, '');
+  return trimmed === '' ? '/' : trimmed;
+}
+
+function withCors(response, origin, allowHeaders = null) {
   const headers = new Headers(response.headers);
   headers.set('Access-Control-Allow-Origin', origin);
-  headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  headers.set('Access-Control-Allow-Headers', allowHeaders || 'Content-Type, Authorization');
   headers.set('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
   headers.set('Access-Control-Max-Age', '86400');
+  if (origin !== '*') {
+    headers.set('Access-Control-Allow-Credentials', 'true');
+  }
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
