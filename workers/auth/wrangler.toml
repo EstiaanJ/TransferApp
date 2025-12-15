@@ -5,9 +5,9 @@ compatibility_date = "2024-09-24"
 [[d1_databases]]
 binding = "DB"
 database_name = "transferapp-auth"
-database_id = "REPLACE_WITH_DB_ID"
+database_id = "2212b77d-cb97-49b6-82e6-c36a24d2a5b0"
 migrations_dir = "migrations"
 
 [vars]
 # URL of the tunneled Rust backend (e.g., https://api.internal.ejvr.xyz)
-BACKEND_URL = "https://your-backend-host"
+BACKEND_URL = "https://app-api.ejvr.xyz"
