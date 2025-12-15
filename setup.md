@@ -1,11 +1,11 @@
 # TransferApp Setup Guide
 
-This guide prepares a Debian-based workstation and your Cloudflare account for running the TransferApp MVP stack (Pages + Worker + Tunnel + Rust backend).
+This guide prepares a Debian-based workstation and your Cloudflare account for running the TransferApp MVP stack (Pages + Worker + Tunnel + Rust backend). It focuses on prerequisites; the linear deployment steps live in `deployment.md`.
 
 ## 1) Prerequisites (accounts and access)
 1. Cloudflare account with the `ejvr.xyz` zone added.
 2. Cloudflare Zero Trust enabled (free plan is enough).
-3. A custom subdomain available for the Worker/API (e.g., `api.ejvr.xyz`) and for Pages (e.g., `app.ejvr.xyz`).
+3. Two custom subdomains reserved: one for the Worker/API (e.g., `api.ejvr.xyz`) and one for Pages (e.g., `app.ejvr.xyz`). You will bind them during deployment; no need to create DNS records yet.
 4. Basic familiarity with the Cloudflare dashboard and Zero Trust console.
 
 ## 2) Local workstation prerequisites (Debian/Ubuntu)
@@ -40,10 +40,8 @@ This guide prepares a Debian-based workstation and your Cloudflare account for r
 ## 3) Cloudflare resources to prepare
 Follow these in the Cloudflare dashboard unless noted otherwise.
 
-### A) Cloudflare Pages
-1. Create a new Pages project pointing at the `frontend/` directory (or connect the repo if desired).
-2. Configure the custom domain (e.g., `app.ejvr.xyz`).
-3. Enable HTTPS and HSTS.
+### A) Cloudflare Pages (prep only)
+- Decide the Pages hostname (e.g., `app.ejvr.xyz`) and ensure it is available in your zone. The project itself is created during deployment.
 
 ### B) D1 database (auth)
 1. In **Workers & Pages → D1**, create a database named `transferapp-auth`.

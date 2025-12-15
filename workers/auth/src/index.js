@@ -1,20 +1,25 @@
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+    const origin = allowedOriginFor(request, env);
+
+    if (request.method === 'OPTIONS') {
+      return withCors(new Response(null, { status: 204 }), origin);
+    }
     if (request.method === 'POST' && url.pathname === '/signup') {
-      return handleSignup(request, env);
+      return withCors(await handleSignup(request, env), origin);
     }
     if (request.method === 'POST' && url.pathname === '/login') {
-      return handleLogin(request, env);
+      return withCors(await handleLogin(request, env), origin);
     }
     if (request.method === 'POST' && url.pathname === '/proxy/echo') {
-      return handleEchoProxy(request, env);
+      return withCors(await handleEchoProxy(request, env), origin);
     }
     if (request.method === 'GET' && url.pathname === '/healthz') {
-      return new Response('ok');
+      return withCors(new Response('ok'), origin);
     }
 
-    return jsonResponse({ message: 'Not found' }, 404);
+    return withCors(jsonResponse({ message: 'Not found' }, 404), origin);
   }
 };
 
@@ -142,4 +147,18 @@ function jsonResponse(obj, status = 200) {
       'Cache-Control': 'no-store'
     }
   });
+}
+
+function allowedOriginFor(request, env) {
+  if (env.FRONTEND_ORIGIN) return env.FRONTEND_ORIGIN;
+  return request.headers.get('Origin') || '*';
+}
+
+function withCors(response, origin) {
+  const headers = new Headers(response.headers);
+  headers.set('Access-Control-Allow-Origin', origin);
+  headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  headers.set('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  headers.set('Access-Control-Max-Age', '86400');
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }

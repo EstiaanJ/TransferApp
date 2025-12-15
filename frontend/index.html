@@ -112,7 +112,7 @@
   </main>
 
   <script>
-    const workerBase = window.__WORKER_BASE__ || '';
+    const workerBase = (window.__WORKER_BASE__ || '').replace(/\/+$/, '');
     const signupBtn = document.getElementById('signup-btn');
     const loginBtn = document.getElementById('login-btn');
     const echoBtn = document.getElementById('echo-btn');

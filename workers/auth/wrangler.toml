@@ -12,3 +12,5 @@ migrations_dir = "migrations"
 [vars]
 # URL of the tunneled Rust backend (e.g., https://api.internal.ejvr.xyz)
 BACKEND_URL = "https://app-api.ejvr.xyz"
+# Origin allowed to call this Worker (set to your Pages hostname; keeps CORS strict)
+FRONTEND_ORIGIN = "https://app.ejvr.xyz"
