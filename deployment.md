@@ -1,12 +1,12 @@
 # TransferApp Deployment Guide (MVP)
 
-This document walks through an end-to-end deployment on Debian: build/run the Rust backend, start the Cloudflare tunnel, configure the Worker/D1, and publish the Pages UI.
+This document walks through an end-to-end deployment on Debian: build/run the Rust backend, start the Cloudflare tunnel, configure the Worker/D1, and publish the Pages UI. It assumes you completed the prerequisites in `setup.md` (tools installed, Cloudflare account ready, subdomains reserved, D1 created, and service token generated).
 
 ## Overview of the flow
 1. Build and run the Rust backend locally on port 3000.
 2. Run `cloudflared` tunnel to expose the backend at `https://api.ejvr.xyz` (or your chosen host) without any port forwarding on your router.
 3. Configure Wrangler with your account and D1 binding, set secrets/vars, and deploy the Worker.
-4. Publish the Pages site and point it at the Worker base URL.
+4. Create/publish the Pages site and point it at the Worker base URL.
 5. Smoke-test signup/login/echo from the Pages UI.
 
 ## 1) Backend: build and run locally
@@ -26,7 +26,7 @@ This document walks through an end-to-end deployment on Debian: build/run the Ru
    export CF_ACCESS_CLIENT_SECRET="<service-token-client-secret>"
    export PORT=3000
    ```
-4. Run the backend:
+4. Run the backend (leave it running while you test end-to-end):
    ```bash
    ./target/release/transferapp-backend
    ```
@@ -62,7 +62,7 @@ This document walks through an end-to-end deployment on Debian: build/run the Ru
 2. Update `wrangler.toml`:
    - Set `account_id` to your Cloudflare account ID.
    - Under `[d1_databases]`, set `database_id` to the `transferapp-auth` D1 ID.
-   - Under `[vars]`, set `BACKEND_URL = "https://api.ejvr.xyz"` (tunnel hostname).
+   - Under `[vars]`, set `BACKEND_URL = "https://api.ejvr.xyz"` (tunnel hostname) and `FRONTEND_ORIGIN` to your Pages URL (e.g., `https://app.ejvr.xyz`) so CORS allows the browser to call the Worker.
 3. Apply D1 migrations:
    ```bash
    wrangler d1 migrations apply transferapp-auth
@@ -81,13 +81,17 @@ This document walks through an end-to-end deployment on Debian: build/run the Ru
    ```bash
    wrangler deploy
    ```
-6. Note the deployed Worker route/URL; you’ll point the frontend to this base (e.g., `https://auth.ejvr.xyz`).
+6. Note the deployed Worker route/URL; you’ll point the frontend to this base (e.g., `https://transferapp-auth.simplelogin-mlvh3.workers.dev` or a custom host like `https://auth.ejvr.xyz`). Keep the Worker URL handy for the Pages step below.
 
 ## 4) Pages: publish the smoke-test UI
 1. From repo root, ensure `frontend/index.html` is ready (no build step needed).
-2. In the Cloudflare dashboard → **Workers & Pages → Pages**, create or redeploy the project using `frontend/`.
-3. Set the custom domain (e.g., `app.ejvr.xyz`) and ensure HTTPS is active.
-4. If the Worker runs on a different host, set `window.__WORKER_BASE__` in Pages via an inline script or modify `frontend/index.html` before deploy to point to the Worker origin (e.g., `https://auth.ejvr.xyz`).
+2. Create or redeploy the Pages project that serves `frontend/`:
+   - **Dashboard:** **Workers & Pages → Pages → Create** → **Upload assets** and select the `frontend/` directory.
+   - **CLI (alternative):** `wrangler pages publish frontend --project-name transferapp`.
+3. Set the custom domain (e.g., `app.ejvr.xyz`) and ensure HTTPS is active; this is where the reserved Pages hostname from `setup.md` is bound.
+4. Point the UI at the deployed Worker:
+   - If the Worker lives on a different hostname, set `window.__WORKER_BASE__` in `frontend/index.html` to the Worker origin **without a trailing slash** (e.g., `https://transferapp-auth.simplelogin-mlvh3.workers.dev`).
+   - If you re-run a Pages deploy later, ensure this value still matches the Worker URL noted in step 3.6.
 
 ## 5) End-to-end smoke test
 1. Open the Pages URL (e.g., `https://app.ejvr.xyz`).
