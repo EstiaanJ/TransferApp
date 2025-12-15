@@ -1,4 +1,4 @@
-account_id = "REPLACE_WITH_ACCOUNT_ID"
+account_id = "f7201cbe066609dbf155f5bc14e698e0"
 name = "transferapp-auth"
 main = "src/index.js"
 compatibility_date = "2024-09-24"
