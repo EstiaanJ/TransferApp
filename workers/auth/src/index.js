@@ -3,23 +3,28 @@ export default {
     const url = new URL(request.url);
     const origin = allowedOriginFor(request, env);
 
-    if (request.method === 'OPTIONS') {
-      return withCors(new Response(null, { status: 204 }), origin);
-    }
-    if (request.method === 'POST' && url.pathname === '/signup') {
-      return withCors(await handleSignup(request, env), origin);
-    }
-    if (request.method === 'POST' && url.pathname === '/login') {
-      return withCors(await handleLogin(request, env), origin);
-    }
-    if (request.method === 'POST' && url.pathname === '/proxy/echo') {
-      return withCors(await handleEchoProxy(request, env), origin);
-    }
-    if (request.method === 'GET' && url.pathname === '/healthz') {
-      return withCors(new Response('ok'), origin);
-    }
+    try {
+      if (request.method === 'OPTIONS') {
+        return withCors(new Response(null, { status: 204 }), origin);
+      }
+      if (request.method === 'POST' && url.pathname === '/signup') {
+        return withCors(await handleSignup(request, env), origin);
+      }
+      if (request.method === 'POST' && url.pathname === '/login') {
+        return withCors(await handleLogin(request, env), origin);
+      }
+      if (request.method === 'POST' && url.pathname === '/proxy/echo') {
+        return withCors(await handleEchoProxy(request, env), origin);
+      }
+      if (request.method === 'GET' && url.pathname === '/healthz') {
+        return withCors(new Response('ok'), origin);
+      }
 
-    return withCors(jsonResponse({ message: 'Not found' }, 404), origin);
+      return withCors(jsonResponse({ message: 'Not found' }, 404), origin);
+    } catch (err) {
+      console.error('Unhandled worker error', err);
+      return withCors(jsonResponse({ error: 'Unexpected error' }, 500), origin);
+    }
   }
 };
 
